@@ -52,9 +52,9 @@ while True:
             pad_token_id=50256, # GPT-2 end of text token
             attention_mask=attention_mask, 
             do_sample=True,     
-            temperature=0.7,            # Perfect middle ground
+            temperature=0.8,            # Increased to break out of semantic loops
             top_p=0.9,                 # NUCLEUS SAMPLING
-            repetition_penalty=1.05,
+            repetition_penalty=1.12,    # Increased slightly to penalize infinite emojis
         )
         
     # Extract only the newly generated tokens
