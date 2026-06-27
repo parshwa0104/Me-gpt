@@ -7,7 +7,7 @@ import os
 
 # 1. Load the model and its trained weights
 print("Loading model...")
-model = GPT2LMHeadModel.from_pretrained('gpt2')
+model = GPT2LMHeadModel.from_pretrained('gpt2-medium')
 
 # Load weights safely regardless of where the script is executed from
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -52,16 +52,16 @@ while True:
             pad_token_id=50256, # GPT-2 end of text token
             attention_mask=attention_mask, 
             do_sample=True,     
-            temperature=0.8,            # Increased to break out of semantic loops
-            top_p=0.9,                 # NUCLEUS SAMPLING
-            repetition_penalty=1.12,    # Increased slightly to penalize infinite emojis
+            temperature=0.7,            # Perfect middle ground
+            top_p=0.9,                  # NUCLEUS SAMPLING
+            repetition_penalty=1.02,    # Very light penalty to avoid breaking English grammar
         )
         
     # Extract only the newly generated tokens
     new_tokens = out_idx[0].tolist()[len(context_tokens):]
     
     # Decode to text
-    response = encoder.decode(new_tokens)
+    response = encoder.decode(new_tokens)   
     
     # CRITICAL FIX: The model will keep generating the rest of the chat log!
     # We split by \n (which safely catches both \n and \r\n), but we skip any empty lines to prevent blank responses.

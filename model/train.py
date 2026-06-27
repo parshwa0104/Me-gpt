@@ -14,7 +14,7 @@ eval_iters = 200      # How many batches to average when evaluating loss
 
 # 1. Load and Tokenize Data
 print("Loading dataset...")
-with open('../data/clean_chat.txt', 'r', encoding='utf-8') as f:
+with open('clean_chat.txt', 'r', encoding='utf-8') as f:
     text = f.read()
 
 print("Encoding data with tiktoken (this might take a few seconds)...")
@@ -49,7 +49,7 @@ def get_batch(split):
 
 # 4. Initialize Model & Optimizer
 print("Initializing pretrained GPT-2 model...")
-model = GPT2LMHeadModel.from_pretrained('gpt2')
+model = GPT2LMHeadModel.from_pretrained('gpt2-medium')
 model = model.to(device)
 
 # Total parameters printout
