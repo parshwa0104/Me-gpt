@@ -10,7 +10,13 @@ n_embed = 256         # Size of the dense embedding vectors (changed from n_embd
 n_head = 4            # Number of attention heads
 n_layer = 4           # Number of Transformer blocks
 dropout = 0.1         # Dropout rate to prevent overfitting on your chat data
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+# Auto-detect the best available device (NVIDIA GPU > Apple Silicon GPU > CPU)
+if torch.cuda.is_available():
+    device = 'cuda'
+elif torch.backends.mps.is_available():
+    device = 'mps'  # Apple Silicon M1/M2/M3 GPU acceleration
+else:
+    device = 'cpu'
 # -----------------------
 
 class Attention(nn.Module):
