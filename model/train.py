@@ -5,9 +5,9 @@ from gpt import block_size, device
 from transformers import GPT2LMHeadModel
 
 # --- Training Hyperparameters ---
-batch_size = 4        # DECREASED: A larger block_size takes more VRAM. We must lower batch_size to compensate!
-max_iters = 1500      # Increased slightly because we are learning slower!
-eval_interval = 250   # Check loss more frequently
+batch_size = 8        # DECREASED: A larger block_size takes more VRAM. We must lower batch_size to compensate!
+max_iters = 5000      # Increased slightly because we are learning slower!
+eval_interval = 750   # Check loss more frequently
 learning_rate = 3e-5  # CRITICAL: Lower learning rate for fine-tuning!
 eval_iters = 200      # How many batches to average when evaluating loss
 # --------------------------------

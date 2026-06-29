@@ -1,6 +1,8 @@
 import torch
 import tiktoken
-from gpt import block_size, device
+from gpt import device
+
+block_size = 1024  # GPT-2 Medium's native context window
 from transformers import GPT2LMHeadModel
 
 import os
@@ -19,6 +21,13 @@ model.eval() # Set to evaluation mode (turns off dropout, etc.)
 # 2. Setup the tokenizer
 encoder = tiktoken.get_encoding("gpt2")
 
+# Always prepended so the model knows who it is, even after context cropping.
+# Anchors the conversation format so the model never "forgets" the persona.
+SYSTEM_PROMPT = "Darshan: Hey Parshwa!\r\nParshwa Nahar: Hey! What's up?\r\n"
+system_tokens = encoder.encode(SYSTEM_PROMPT)
+# Reserve space for the system prompt so it's never cropped away
+max_context_tokens = block_size - len(system_tokens)
+
 print("\n--- You-GPT Chatbot is ready! Type 'quit' to exit. ---")
 context = ""
 
@@ -30,18 +39,31 @@ while True:
         
     # CRITICAL FIX: The model was trained on Windows line endings (\r\n).
     # If we use \n, the tokenizer generates completely different numbers and the AI hallucinates!
-    # Also, "Friend:" is not in the training data, so we pretend you are "Darshan:".
+    # Also we pretend you are "Darshan:".
     context += f"Darshan: {user_input}\r\nParshwa Nahar:"
     
     # Encode current context
     context_tokens = encoder.encode(context)
     
-    # Crop context if it exceeds the block_size the model was trained on
-    if len(context_tokens) > block_size:
-        context_tokens = context_tokens[-block_size:]
+    # Smart context cropping: crop at message boundaries instead of mid-token!
+    # This prevents the model from seeing a broken half-message at the start.
+    if len(context_tokens) > max_context_tokens:
+        # Decode back to text, find the first complete \r\n boundary, and crop there
+        overflow_text = encoder.decode(context_tokens)
+        # Find the first complete message boundary after the overflow point
+        chars_to_drop = len(overflow_text) - len(encoder.decode(context_tokens[-max_context_tokens:]))
+        crop_point = overflow_text.find("\r\n", chars_to_drop)
+        if crop_point != -1:
+            context = overflow_text[crop_point + 2:]  # Skip past the \r\n
+        else:
+            context = overflow_text[-len(encoder.decode(context_tokens[-max_context_tokens:])):]
+        context_tokens = encoder.encode(context)
+    
+    # Prepend system prompt so the model always sees the persona anchor
+    full_tokens = system_tokens + context_tokens
         
     # Prepare input tensor (B, T) where Batch size is 1
-    idx = torch.tensor(context_tokens, dtype=torch.long).unsqueeze(0).to(device)
+    idx = torch.tensor(full_tokens, dtype=torch.long).unsqueeze(0).to(device)
     attention_mask = torch.ones_like(idx)
     
     # Generate new tokens using HuggingFace generate method
@@ -58,7 +80,7 @@ while True:
         )
         
     # Extract only the newly generated tokens
-    new_tokens = out_idx[0].tolist()[len(context_tokens):]
+    new_tokens = out_idx[0].tolist()[len(full_tokens):]
     
     # Decode to text
     response = encoder.decode(new_tokens)   
