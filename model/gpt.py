@@ -5,7 +5,7 @@ import math
 
 # --- Hyperparameters ---
 vocab_size = 100277   # tiktoken 'cl100k_base' vocabulary size
-block_size = 512      # INCREASED: Model now remembers 512 tokens of conversation history
+block_size = 1024      # INCREASED: Model now remembers 512 tokens of conversation history
 n_embed = 256         # Size of the dense embedding vectors (changed from n_embd)
 n_head = 4            # Number of attention heads
 n_layer = 4           # Number of Transformer blocks
