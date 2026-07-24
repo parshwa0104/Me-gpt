@@ -27,6 +27,7 @@ The pipeline is designed for high-fidelity text generation, effectively bridging
 
 ### Prerequisites
 * Python 3.8+
+### For future when there is a dynamic interactive website
 * Node.js & npm
 * React Native CLI
 
@@ -36,21 +37,6 @@ git clone https://github.com/parshwa0104/Me-gpt.git
 cd Me-gpt
 ```
 
-### 2. Backend & Model Setup
-
-```bash
-cd backend
-pip install -r requirements.txt
-python model_server.py
-```
-
-### 3. Frontend Setup
-
-```bash
-cd ../mobile
-npm install
-npx react-native run-android  # or run-ios
-```
 
 ## 📈 Future Roadmap
 
