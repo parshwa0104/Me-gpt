@@ -1,57 +1,57 @@
-# YOU-GPT: Personalized LLM Architecture
+# YOU-GPT: Personalized AI Clone
 
-![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
-![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
-![React Native](https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
 
-An end-to-end deployed AI system utilizing a custom-trained transformer model (fine-tuned GPT-2 architecture) on personal WhatsApp chat histories to simulate personalized communication styles. The project features custom PyTorch training loops and a React Native mobile interface to bring the model to life.
+An end-to-end personalized conversational AI clone fine-tuned on real **WhatsApp & Instagram Direct Message** chat histories. Engineered to accurately imitate personal humor, Hinglish phrasing, colloquialisms, and conversational cadence.
+It does not tho but the progess from version1 to 2 is very much visible
 
-Initially trained using a free T4 GPU provided by Google Colab, it is a continuous learning project aimed at imitating my personal tone and conversational nuances.
+---
 
-## 🧠 System Architecture
+## 📁 Clean Project Structure
 
-The pipeline is designed for high-fidelity text generation, effectively bridging advanced machine learning models with a production-ready mobile frontend.
-
-*   **Data Pipeline:** Raw WhatsApp chat history is systematically cleaned, parsed, and tokenized, transforming unstructured text into highly structured training datasets optimized for transformer consumption.
-*   **Model Fine-Tuning:** Leverages HuggingFace and PyTorch to train and fine-tune the GPT-2 / GPT-2 Medium architecture. The training loop is heavily customized to optimize linguistic accuracy, response relevance, and contextual tone.
-*   **Full-Stack Deployment:** A highly scalable Node.js/Express backend serves the model inference via REST APIs directly to a responsive React Native mobile frontend.
-
-## ⚙️ Key Engineering Hurdles Overcome
-
-*   **Conversational Memory Degradation:** Resolved multi-turn context collapse by implementing explicit `<|user|>` and `<|assistant|>` tokenization boundaries, allowing the model to accurately differentiate between prompt and response states.
-*   **Loss Function Optimization:** Engineered prompt masking within the PyTorch training loop (`ignore_index=-100`) to ensure the model exclusively calculates loss on the generated answers rather than penalizing the input prompts, drastically improving inference accuracy.
-*   **Tensor Management:** Leveraged AI pair programming to overcome tricky tensor shape mismatches and complex model debugging during the initial build phase.
-
-## 🚀 Quick Start / Installation
-
-### Prerequisites
-* Python 3.8+
-### For future when there is a dynamic interactive website
-* Node.js & npm
-* React Native CLI
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/parshwa0104/Me-gpt.git
-cd Me-gpt
+```
+you-gpt/
+│
+├── data/
+│   ├── clean_chat_v2.txt         # [Master Dataset] 1.35M clean tokens (WhatsApp + Instagram)
+│   ├── parse_whatsapp.py         # WhatsApp export parser and cleaner
+│   ├── parse_instagram.py        # Instagram DM JSON parser with emoji/reaction cleaners
+│   └── raw_chats/                # Raw chat exports & dumps (ignored by git)
+│
+├── model/
+│   ├── you_gpt_v2_weights.pth    # [v2 Checkpoint] Response-masked model (Val PPL: 20.04)
+│   ├── chat.py                   # Interactive terminal chat engine (w/ Semantic Memory Engine)
+│   ├── memory.py                 # Semantic Memory Store (RAG engine across 15.8k past turns)
+│   ├── api.py                    # Production FastAPI REST backend
+│   ├── gpt.py                    # Custom transformer model configuration & implementation
+│   └── You_GPT_v2_Colab_Training.ipynb # 1-Click Google Colab T4 GPU training notebook
+│
+├── hf_space/                     # 24/7 Hugging Face Spaces deployment bundle
+│   ├── app.py                    # Gradio chat UI & API endpoint
+│   ├── memory.py                 # Memory Engine for web deployment
+│   ├── README.md                 # Hugging Face Space metadata configuration
+│   └── requirements.txt          # Cloud dependencies
+│
+├── tutorial.txt                  # Theoretical concepts & architecture notes
+├── .gitignore                    # Optimized git rules (blocks large dumps & weights)
+└── README.md                     # Project documentation
 ```
 
+---
 
-## 📈 Future Roadmap
+## 🧠 Model Evolution: v1 vs. v2
 
-Currently, this is a foundational model, but there are several exciting avenues for future scaling and improvements:
+| Metric | Stage 0 (Base GPT-2) | Stage 1 (You-GPT v1) | Stage 2 (You-GPT v2) |
+| :--- | :---: | :---: | :---: |
+| **Dataset Sources** | WebText (English) | WhatsApp Only (~519k tokens) | **WhatsApp + Instagram (~1.35M tokens)** |
+| **Dialogue Pairs** | 0 | 8,681 pairs | **26,416 pairs** |
+| **Training Objective** | Full sequence loss | Full sequence loss | **Response-Only Loss Masking (`ignore_index=-100`)** |
+| **Validation Loss** | `3.3053` | `3.2103` | **`2.9978` 🏆** |
+| **Validation Perplexity** | `27.26` | `26.45` | **`20.04` 🏆** |
+| **Overfitting Gap** | `+0.00` | `+0.9110` *(High Overfit)* | **`+0.1713`** *(Ideal Generalization)* |
+| **Tone & Style** | Generic English | Memorized WhatsApp lines | **Fluid conversational Hinglish** |
 
-*   **More Data Context:** Expanding the dataset to ensure the model captures my tone even better.
-*   **Efficient Fine-Tuning:** Integration of LoRA (Low-Rank Adaptation) for highly efficient, low-memory fine-tuning.
-*   **Model Scaling:** Increasing the number of attention heads, embedding dimensions, and transformer blocks.
-*   **Distributed Training:** Implementing Distributed Data Parallel (DDP) or Fully Sharded Data Parallel (FSDP).
-*   **Optimization:** Experimenting with FlashAttention and mixed-precision training (BF16) to speed up training and reduce memory consumption.
-*   **Architectural Improvements:** Implementing modern advancements like Rotary Positional Embeddings (RoPE), SwiGLU activations, and Grouped-Query Attention (GQA).
-*   **Mobile Inference:** Implementation of advanced quantization techniques (INT8/INT4) for reduced inference latency on mobile hardware.
+---
 
-## 🙏 Acknowledgements & Huge Thanks!
 
-A massive and special thanks to **Andrej Karpathy**! This project is heavily inspired by his incredible tutorials and educational content on neural networks and language models. His ability to break down complex concepts into understandable pieces made this entire project possible. 
 
-I also leveraged AI coding assistants as invaluable pair programmers to identify root causes of errors and explain reasoning behind fixes, which significantly sped up the development of this codebase.

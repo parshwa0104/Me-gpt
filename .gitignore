@@ -1,5 +1,25 @@
+# Model Checkpoints
 *.pth
 *.pt
+*.bin
+*.safetensors
+*.incomplete
+
+# Python & Environment
 __pycache__/
-*.pyc
-tutorial.txt
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.env
+
+# Raw Personal Chat Exports & Dumps
+data/raw_chats/
+data/*.txt
+
+# OS and Editor junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

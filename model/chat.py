@@ -2,33 +2,48 @@ import torch
 import tiktoken
 from gpt import device
 
-block_size = 1024  # GPT-2 Medium's native context window
-from transformers import GPT2LMHeadModel
+block_size = 1024
+from transformers import GPT2LMHeadModel, GPT2Config
 
 import os
 
 # 1. Load the model and its trained weights
 print("Loading model...")
-model = GPT2LMHeadModel.from_pretrained('gpt2-medium')
+config = GPT2Config(
+    vocab_size=50257,
+    n_positions=1024,
+    n_embd=768,
+    n_layer=12,
+    n_head=12,
+)
+model = GPT2LMHeadModel(config)
 
 # Load weights safely regardless of where the script is executed from
 script_dir = os.path.dirname(os.path.abspath(__file__))
-weights_path = os.path.join(script_dir, 'you_gpt_weights.pth')
+v2_path = os.path.join(script_dir, 'you_gpt_v2_weights.pth')
+v1_path = os.path.join(script_dir, 'you_gpt_weights.pth')
+
+if os.path.exists(v2_path):
+    weights_path = v2_path
+    print("Found You-GPT v2 checkpoint! Loading 'you_gpt_v2_weights.pth'...")
+else:
+    weights_path = v1_path
+    print("Loading You-GPT v1 checkpoint 'you_gpt_weights.pth'...")
+
 model.load_state_dict(torch.load(weights_path, map_location=device))
 model = model.to(device)
 model.eval() # Set to evaluation mode (turns off dropout, etc.)
 
-# 2. Setup the tokenizer
+# 2. Setup the tokenizer and Semantic Memory Store (RAG)
 encoder = tiktoken.get_encoding("gpt2")
 
-# Always prepended so the model knows who it is, even after context cropping.
-# Anchors the conversation format so the model never "forgets" the persona.
-SYSTEM_PROMPT = "Darshan: Hey Parshwa!\r\nParshwa Nahar: Hey! What's up?\r\n"
-system_tokens = encoder.encode(SYSTEM_PROMPT)
-# Reserve space for the system prompt so it's never cropped away
-max_context_tokens = block_size - len(system_tokens)
+from memory import ChatMemoryStore
+print("Initializing Semantic Memory Engine (indexing 26,000 chat memories)...")
+memory_store = ChatMemoryStore()
 
-print("\n--- You-GPT Chatbot is ready! Type 'quit' to exit. ---")
+max_context_tokens = 700  # Plenty of space for memory anchor + dialogue history
+
+print("\n--- You-GPT Chatbot (Memory-Augmented) is ready! Type 'quit' to exit. ---")
 context = ""
 
 # 3. Interactive Chat Loop
@@ -36,65 +51,65 @@ while True:
     user_input = input("Darshan: ")
     if user_input.lower() == 'quit':
         break
+    if not user_input.strip():
+        continue
         
-    # CRITICAL FIX: The model was trained on Windows line endings (\r\n).
-    # If we use \n, the tokenizer generates completely different numbers and the AI hallucinates!
-    # Also we pretend you are "Darshan:".
+    # Retrieve the most semantically relevant real-life conversation memory
+    memory_anchor, match = memory_store.get_memory_anchor(user_input)
+        
+    # Append user turn ending with 'Parshwa Nahar:' (NO trailing space) to match exact training tokens
     context += f"Darshan: {user_input}\r\nParshwa Nahar:"
     
-    # Encode current context
-    context_tokens = encoder.encode(context)
+    # Dynamic context: Memory Anchor + Recent Dialogue Turns
+    dynamic_context = memory_anchor + context
+    context_tokens = encoder.encode(dynamic_context)
     
-    # Smart context cropping: crop at message boundaries instead of mid-token!
-    # This prevents the model from seeing a broken half-message at the start.
     if len(context_tokens) > max_context_tokens:
-        # Decode back to text, find the first complete \r\n boundary, and crop there
-        overflow_text = encoder.decode(context_tokens)
-        # Find the first complete message boundary after the overflow point
-        chars_to_drop = len(overflow_text) - len(encoder.decode(context_tokens[-max_context_tokens:]))
-        crop_point = overflow_text.find("\r\n", chars_to_drop)
-        if crop_point != -1:
-            context = overflow_text[crop_point + 2:]  # Skip past the \r\n
-        else:
-            context = overflow_text[-len(encoder.decode(context_tokens[-max_context_tokens:])):]
-        context_tokens = encoder.encode(context)
-    
-    # Prepend system prompt so the model always sees the persona anchor
-    full_tokens = system_tokens + context_tokens
+        context_tokens = context_tokens[-max_context_tokens:]
         
     # Prepare input tensor (B, T) where Batch size is 1
-    idx = torch.tensor(full_tokens, dtype=torch.long).unsqueeze(0).to(device)
+    idx = torch.tensor(context_tokens, dtype=torch.long).unsqueeze(0).to(device)
     attention_mask = torch.ones_like(idx)
     
     # Generate new tokens using HuggingFace generate method
     with torch.no_grad():
         out_idx = model.generate(
             idx, 
+            min_new_tokens=8,           # Encourages full conversational thoughts
             max_new_tokens=50, 
-            pad_token_id=50256, # GPT-2 end of text token
+            pad_token_id=50256,         # GPT-2 end of text token
             attention_mask=attention_mask, 
             do_sample=True,     
-            temperature=0.7,            # Perfect middle ground
-            top_p=0.9,                  # NUCLEUS SAMPLING
-            repetition_penalty=1.02,    # Very light penalty to avoid breaking English grammar
+            temperature=0.74,           # Prevents probability collapse into 1-word reflex
+            top_p=0.90,                 # Nucleus sampling
+            top_k=40,                   # Cut off improbable tail tokens
+            repetition_penalty=1.08,    # Prevents repetitive loops
         )
         
     # Extract only the newly generated tokens
-    new_tokens = out_idx[0].tolist()[len(full_tokens):]
+    new_tokens = out_idx[0].tolist()[len(context_tokens):]
     
-    # Decode to text
-    response = encoder.decode(new_tokens)   
+    # Decode to text and clean special tokens & carriage returns
+    raw_response = encoder.decode(new_tokens).replace("<|endoftext|>", "").replace("\r", "")
     
-    # CRITICAL FIX: The model will keep generating the rest of the chat log!
-    # We split by \n (which safely catches both \n and \r\n), but we skip any empty lines to prevent blank responses.
-    lines = [line.strip() for line in response.split('\n') if line.strip()]
-    
-    if len(lines) > 0:
-        response = lines[0] # Take the very first sentence you actually said
-    else:
-        response = "" # Fallback if it literally only generated spaces
+    # Support multi-bubble texting: gather consecutive Parshwa lines until another speaker starts
+    valid_bubbles = []
+    for line in raw_response.split('\n'):
+        clean = line.strip()
+        if not clean:
+            continue
+        # Stop if the model starts generating the other speaker's turn
+        if ':' in clean and not clean.startswith('Parshwa'):
+            break
+        if clean.startswith('Parshwa Nahar:'):
+            clean = clean[len('Parshwa Nahar:'):].strip()
+        if clean:
+            valid_bubbles.append(clean)
+        if len(valid_bubbles) >= 2:  # Allow up to 2 natural conversational bubbles
+            break
+            
+    response = " ".join(valid_bubbles) if valid_bubbles else "Haa"
     
     # Print the response and add it to our running context
     print(f"Parshwa Nahar: {response}\n")
-    # Add back to context exactly as formatted in training (with \r\n and a leading space!)
     context += f" {response}\r\n"

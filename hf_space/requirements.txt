@@ -1,0 +1,5 @@
+torch
+transformers
+tiktoken
+gradio>=4.40.0
+scikit-learn
